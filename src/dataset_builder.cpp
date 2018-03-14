@@ -42,6 +42,12 @@ namespace po = boost::program_options;
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/console/parse.h>
 
+/** relevance map related libraries **/
+#include <iagmm/gmm.hpp>
+#include <image_processing/SurfaceOfInterest.h>
+namespace ip = image_processing;
+#include <boost/archive/text_iarchive.hpp>
+
 
 /**
  * @brief ProcessData
@@ -104,12 +110,84 @@ int ProcessData(const PointCloudTA::Ptr input_cloud, const cv::Mat input_image, 
     pcl::copyPointCloud(*cloud_objects, *output_cloud);
     /** ----------------------------------------------------- **/
 
+
     /** **/
     /** EXTRACTING PATCH FROM IMAGE **/
     /** **/
     Eigen::Vector4i coord;
     VISION_TOOLS::computePatchCoordinates(output_cloud, coord, projectionMatrix, true);
     VISION_TOOLS::extractPatchFromImage(input_image, output_image, coord, 15, 15, imageSize_w, imageSize_h);
+    /** ----------------------------------------------------- **/
+
+}
+
+void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat input_image, PointCloudTA::Ptr output_cloud,
+                            cv::Mat& output_image, const std::string classifier_archive,
+                            const float x_min , const float x_max,
+                            const float y_min, const float y_max,
+                            const float z_min, const float z_max,
+                            const int imageSize_h, const int imageSize_w,
+                            const int rf_tresh, const float rf_dist){
+
+    /** ALL THOSE PARAMETERS ARE CAMERA DEPENDENT **/
+    /** You need to use those corresponding to the camera used to capture the images **/
+    /** Maybe in the future those parameters should be placed and called in an extern file, to avoid recompiling **/
+    // Pose of the camera in cartesian space
+    Eigen::Matrix4f cameraPose;
+    cameraPose <<   0, 0, 1, 0,
+            0,-1, 0, 0,
+            1, 0, 0, 0,
+            0, 0, 0, 1;
+    // Projection matrix
+    Eigen::Matrix4f projectionMatrix;
+    projectionMatrix << 1044.97, 0., 945, 0.,
+            0., 1050.29, 553.36, 0.,
+            0., 0., 1., 0.,
+            0., 0., 0., 1.;
+    /** ------------------------- **/
+
+    /** **/
+    /** REMOVING NaN AND INF POINTS **/
+    /** **/
+    std::vector<int> removedPointIndices;
+    pcl::removeNaNFromPointCloud(*input_cloud, *output_cloud, removedPointIndices);
+    /** **/
+    /** ----------------------------------------------------- **/
+
+
+    /** Generating Relevance Map **/
+
+    //* load classifier from an archive
+    iagmm::GMM classifier;
+    std::ifstream ifs(classifier_archive);
+    if(!ifs){
+        std::cerr << "unable to open gmm classifier archive" << std::endl;
+        return;
+    }
+    boost::archive::text_iarchive iarch(ifs);
+    iarch >> classifier;
+    //*/
+
+    //* computing relevance map
+    ip::SurfaceOfInterest soi;
+    soi.setInputCloud(input_cloud);
+    std::unique_ptr<ip::workspace_t> workspace(
+                new ip::workspace_t(false,0,0,0,0,0,
+                                    x_min,x_max,y_min,y_max,z_min,z_max));
+
+    soi.computeSupervoxel(workspace);
+    soi.compute_feature("meanFPFHLabHist");
+    soi.compute_weights<iagmm::GMM>(classifier);
+    //*/
+
+    //to get the intensity map
+    pcl::PointCloud<pcl::PointXYZI> relevance_map_cloud = soi.getColoredWeightedCloud("meanFPFHLabHist");
+    //to get access to the supervoxels
+    for(auto it = soi.getSupervoxels().begin(); it != soi.getSupervoxels().end(); ++it){
+        it->first; //label of the supervoxel (uint32)
+        it->second; //supervoxel itself
+    }
+
     /** ----------------------------------------------------- **/
 
 }
