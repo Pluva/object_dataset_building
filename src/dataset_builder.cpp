@@ -178,6 +178,7 @@ void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat i
     soi.computeSupervoxel(workspace);
     soi.compute_feature("meanFPFHLabHist");
     soi.compute_weights<iagmm::GMM>(classifier);
+    std::map<uint32_t,double> relevance_map = soi.get_weights()["meanFPFHLabHist"];
     //*/
 
     //to get the intensity map
