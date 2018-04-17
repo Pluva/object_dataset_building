@@ -28,7 +28,7 @@
 
 
 /** VISION TOOLS **/
-/** 
+/**
     Library containing small functions related to image processing.
 **/
 
@@ -114,6 +114,15 @@ void computePatchCoordinates(const PointCloudT::Ptr rawCloud, Eigen::Vector4i &c
  * @param cam_model
  */
 void computePatchCoordinates(const PointCloudT::Ptr rawCloud, Eigen::Vector4i &coord, const image_geometry::PinholeCameraModel &cam_model, bool square = false);
+
+/**
+ * @brief computePatchCoordinatesIntensity [Return the coordinates of the patches corresponding to objects as segmented by the intensity map.]
+ * @param rawCloud [Intensity map]
+ * @param coord [Coord object to fill]
+ * @param cam_model [Camera parameters to project point cloud to 2D.]
+ * @param square [Return a square patch]
+ */
+void computePatchCoordinates_Intensity(const PointCloudT::Ptr rawCloud, Eigen::Vector4i &coord, const image_geometry::PinholeCameraModel &cam_model, float intensity, float, bool square = false);
 
 /**
  * @brief computeCloudSize

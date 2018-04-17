@@ -349,22 +349,7 @@ void extractPatchFromImage(const cv::Mat &imageSource, cv::Mat &imageTarget, con
     patchImage.copyTo(imageTarget);
 }
 
-void extractPatchFromImage(const cv::Mat &imageSource, cv::Mat &imageTarget, const cv::RotatedRect &rect, int margeX, int margeY, int sourceWidth, int sourceHeight)
-{
-    /** Bugged function ? **/
-//    cv::Mat M, rotated;
-//    float angle = rect.angle;
-//    cv::Size rect_size = rect.size;
-//    if (rect.angle < -45)
-//    {
-//        angle += 90.0;
-//        swap(rect_size.width,rect_size.height);
-//    }
-//    M = cv::getRotationMatrix2D(rect.center, angle, 1.0);
-//    cv::warpAffine(imageSource, rotated, M, imageSource.size(), cv::INTER_CUBIC);
-//    cv::getRectSubPix(rotated, rect_size, rect.center, imageTarget);
 
-}
 
 void randomizeLabels(PointLCloudT::Ptr cloud)
 {
@@ -509,14 +494,6 @@ void selectPatchOnImage(const cv::Mat &image_source, cv::Mat &image_target, cons
     int npt[] = { convex_hull.size() };
     cv::fillPoly(mask, ppt, npt, 1, cv::Scalar(255));
     image_source.copyTo(image_target, mask);
-}
-
-void selectPatchOnImage(const cv::Mat &image_source, cv::Mat &image_target, const cv::RotatedRect &rect)
-{
-//    image_target = cv::Mat(image_source.size, CV_8U, cv::Scalar(0));
-//    cv::Point2f points[4];
-//    rect.points(points);
-//    cv::fillPoly(image_target, points)
 }
 
 }
