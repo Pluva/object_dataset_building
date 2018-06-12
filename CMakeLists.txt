@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(dataset_building)
 
 ##set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -O3 ${CMAKE_CXX_FLAGS}")
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 ##add_definitions(-std=c++11)
