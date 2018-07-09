@@ -80,12 +80,22 @@ int ObjectProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat input_im
             1, 0, 0, 0,
             0, 0, 0, 1;
     // Projection matrix
+    // OLD ?
     Eigen::Matrix4f projectionMatrix;
     projectionMatrix << 1044.97, 0., 945, 0.,
             0., 1050.29, 553.36, 0.,
             0., 0., 1., 0.,
             0., 0., 0., 1.;
+//    Eigen::Matrix4f projectionMatrix;
+//    projectionMatrix << 1051.77, 0.0, 927.93, 0.0,
+//            0.0, 1051.76, 516.40, 0.0,
+//            0.0, 0.0, 1.0, 0.0;
+//            0., 0., 0., 1.;
+
     /** ------------------------- **/
+
+
+
 
     /** **/
     /** REMOVING NaN AND INF POINTS **/
@@ -140,7 +150,7 @@ int ObjectProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat input_im
  * @param certainty_treshold
  */
 void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat input_image,
-                            std::vector<std::pair<cv::Mat, float>>& output_images, const std::string classifier_archive,
+                            std::vector<std::pair<cv::Mat, double>>& output_images, const std::string classifier_archive,
                             const float x_min , const float x_max,
                             const float y_min, const float y_max,
                             const float z_min, const float z_max,
@@ -158,11 +168,13 @@ void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat i
             1, 0, 0, 0,
             0, 0, 0, 1;
     // Projection matrix
+    // PR2 Calib
     Eigen::Matrix4f projectionMatrix;
-    projectionMatrix << 1044.97, 0., 945, 0.,
-            0., 1050.29, 553.36, 0.,
-            0., 0., 1., 0.,
+    projectionMatrix << 1051.77, 0.0, 927.93, 0.0,
+            0.0, 1051.76, 516.40, 0.0,
+            0.0, 0.0, 1.0, 0.0;
             0., 0., 0., 1.;
+
     /** ------------------------- **/
 
     /** Generating Relevance Map **/
@@ -186,14 +198,15 @@ void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat i
                 {x_min,x_max,y_min,y_max,z_min,z_max}));
 
     soi.computeSupervoxel(*workspace);
+    std::cout << "nbr supervoxels "  << soi.getSupervoxels().size() << std::endl;
     soi.compute_feature("meanFPFHLabHist");
-    soi.compute_weights<iagmm::GMM>(classifier);
+    soi.compute_weights<iagmm::GMM>("meanFPFHLabHist",classifier);
 
     // Get the labels of each supervoxels
-    std::map<uint32_t,std::vector<double>> relevance_map = soi.get_weights()["meanFPFHLabHist"];
+    std::map<uint32_t,double> relevance_map = soi.get_weights()["meanFPFHLabHist"];
 
     // Get the intensity map
-    pcl::PointCloud<pcl::PointXYZI> relevance_map_cloud = soi.getColoredWeightedCloud("meanFPFHLabHist",1);
+//    pcl::PointCloud<pcl::PointXYZI> relevance_map_cloud = soi.getColoredWeightedCloud("meanFPFHLabHist");
 
 
     // Get access to the supervoxels
@@ -203,20 +216,19 @@ void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat i
 
     Eigen::Vector4i bounding_rect;
     cv::Mat output_image;
-    for(auto it = soi.getSupervoxels().begin(); it != soi.getSupervoxels().end(); ++it){
+    for(const auto& sv : soi.getSupervoxels()){
 
 //        it->first; //label of the supervoxel (uint32)
 //        it->second; //supervoxel itself
 
-//        relevance_map.get(it->first); // get map value for this SV
+        double weight = relevance_map[sv.first]; // get map value for this SV
 
-        if (it->second->voxels_.width * it->second->voxels_.height > 0)
+        if (!sv.second->voxels_->empty())
         {
             // Extract patch from image
-            VISION_TOOLS::computePatchCoordinates(it->second->voxels_, bounding_rect, projectionMatrix, true);
+            VISION_TOOLS::computePatchCoordinates(sv.second->voxels_, bounding_rect, projectionMatrix, true);
             VISION_TOOLS::extractPatchFromImage(input_image, output_image, bounding_rect, marge_x, marge_y, imageSize_w, imageSize_h);
-
-            output_images.push_back(std::make_pair(cv::Mat(output_image), it->first));
+            output_images.push_back(std::make_pair(cv::Mat(output_image), weight));
         }
     }
 
@@ -379,6 +391,9 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
     float cic_z_min;
     float cic_z_max;
 
+    float cic_x_marge;
+    float cic_y_marge;
+
     std::string classifier_archive;
 
 
@@ -388,18 +403,20 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
         // To change
         po::options_description desc("Arguments");
         desc.add_options()
-                ("baseName_cloud", po::value<std::string>(&baseName_cloud), "Cloud filename suffix")
-                ("baseName_image", po::value<std::string>(&baseName_image), "Image filename suffix")
-                ("baseName_path", po::value<std::string>(&baseName_path), "Path to the dataset")
-                ("imageSize_h", po::value<int>(&imageSize_h), "Image height")
-                ("imageSize_w", po::value<int>(&imageSize_w), "Image width")
-                ("cic_x_min", po::value<float>(&cic_x_min))
-                ("cic_x_max", po::value<float>(&cic_x_max))
-                ("cic_y_min", po::value<float>(&cic_y_min))
-                ("cic_y_max", po::value<float>(&cic_y_max))
-                ("cic_z_min", po::value<float>(&cic_z_min))
-                ("cic_z_max", po::value<float>(&cic_z_max))
-                ("classifier_archive", po::value<std::string>(&classifier_archive));
+                ("Arguments.baseName_cloud", po::value<std::string>(&baseName_cloud), "Cloud filename suffix")
+                ("Arguments.baseName_image", po::value<std::string>(&baseName_image), "Image filename suffix")
+                ("Arguments.baseName_path", po::value<std::string>(&baseName_path), "Path to the dataset")
+                ("Arguments.imageSize_h", po::value<int>(&imageSize_h), "Image height")
+                ("Arguments.imageSize_w", po::value<int>(&imageSize_w), "Image width")
+                ("Arguments.cic_x_min", po::value<float>(&cic_x_min))
+                ("Arguments.cic_x_max", po::value<float>(&cic_x_max))
+                ("Arguments.cic_y_min", po::value<float>(&cic_y_min))
+                ("Arguments.cic_y_max", po::value<float>(&cic_y_max))
+                ("Arguments.cic_z_min", po::value<float>(&cic_z_min))
+                ("Arguments.cic_z_max", po::value<float>(&cic_z_max))
+                ("Arguments.cic_x_marge", po::value<float>(&cic_x_marge))
+                ("Arguments.cic_y_marge", po::value<float>(&cic_y_marge))
+                ("Arguments.classifier_archive", po::value<std::string>(&classifier_archive));
         po::variables_map vm;
         try
         {
@@ -448,20 +465,22 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
                     return (-1);
                 }
 
-                std::vector<std::pair<cv::Mat, float>> output_images;
+                std::vector<std::pair<cv::Mat, double>> output_images;
                 // Process Data to create patches from this image + relevance map
                 RelevanceMapProcessing(loaded_cloud, loaded_image,
                                        output_images, classifier_archive,
                                        cic_x_min , cic_x_max,
                                        cic_y_min, cic_y_max,
                                        cic_z_min, cic_z_max,
+                                       cic_x_marge, cic_y_marge,
                                        imageSize_h, imageSize_w);
+
 
                 // Save Data
                 // Each patch will be saved under a specific image, whose name is composed of the current base image name + predicted value on a 3 number precision.
                 std::cout << "Saving ... " << std::endl;
                 int patch_nb = 0;
-                for (std::vector<std::pair<cv::Mat, float>>::iterator it = output_images.begin() ; it != output_images.end(); ++it)
+                for (std::vector<std::pair<cv::Mat, double>>::iterator it = output_images.begin() ; it != output_images.end(); ++it)
                 {
                     // compute patch name
                     std::string patch_name = + "_" + std::to_string(patch_nb) + "_" + std::to_string((int(it->second * 1000)));
@@ -486,5 +505,6 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
 
 int main (int argc, char **argv)
 {
-
+    LoopOverDataset_RelevanceMap(argc, argv);
+    return 0;
 }
