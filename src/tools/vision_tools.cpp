@@ -49,7 +49,6 @@ cv::Mat cloud_to_opencvMatImg(const PointCloudT::Ptr cloud)
     cv::Mat image(cloud->height, cloud->width, CV_8UC3, cv::Scalar(255,0,0));
     PointT *pt;
 
-    std::cout << "Step1\n";
     // cv::Scalar<CV_8UC3> *color;
 
     for (int w = 0; w < cloud->height; w++)
@@ -64,7 +63,6 @@ cv::Mat cloud_to_opencvMatImg(const PointCloudT::Ptr cloud)
     }
 
     // cv::initModule_nonfree();
-    std::cout << "Step2\n";
 
     return image;
 
@@ -216,7 +214,6 @@ void computePatchCoordinates(const PointCloudT::Ptr rawCloud, Eigen::Vector4i &c
     {
         int width = coord[1] - coord[0];
         int height = coord[3] - coord[2];
-        std::cout << height << " " << width << std::endl;
         if (height > width)
         {
             coord[0] -= (height - width)/2;
@@ -256,7 +253,6 @@ void computePatchCoordinates(const PointCloudT::Ptr rawCloud, Eigen::Vector4i &c
     {
         int width = coord[1] - coord[0];
         int height = coord[3] - coord[2];
-        std::cout << height << " " << width << std::endl;
         if (height > width)
         {
             coord[0] -= (height - width)/2;

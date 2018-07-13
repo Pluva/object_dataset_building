@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <fstream>
 #include <string>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -242,6 +243,7 @@ void RelevanceMapProcessing(const PointCloudTA::Ptr input_cloud, const cv::Mat i
 
 /**
  * @brief Main function, browse through the repertory given as parameter in the config file and create according dataset.
+ * Creates patches of images according to the corresponding clouds.
  * @param argc
  * @param argv
  * @return
@@ -282,7 +284,7 @@ int LoopOverDataset_ProcessData(int argc, char **argv)
         po::variables_map vm;
         try
         {
-            std::ifstream configfile(argv[1]);
+            std::ifstream configfile(argv[0]);
             po::store(po::parse_command_line(argc, argv, desc), vm);
             po::store(po::parse_config_file(configfile, desc), vm);
             po::notify(vm);
@@ -396,11 +398,9 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
 
     std::string classifier_archive;
 
-
     try
     {
         // Read arguments from config file
-        // To change
         po::options_description desc("Arguments");
         desc.add_options()
                 ("Arguments.baseName_cloud", po::value<std::string>(&baseName_cloud), "Cloud filename suffix")
@@ -414,16 +414,25 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
                 ("Arguments.cic_y_max", po::value<float>(&cic_y_max))
                 ("Arguments.cic_z_min", po::value<float>(&cic_z_min))
                 ("Arguments.cic_z_max", po::value<float>(&cic_z_max))
-                ("Arguments.cic_x_marge", po::value<float>(&cic_x_marge))
-                ("Arguments.cic_y_marge", po::value<float>(&cic_y_marge))
+                ("Arguments.cic_x_marge", po::value<float>(&cic_x_marge), "Marge over the x axis (width)")
+                ("Arguments.cic_y_marge", po::value<float>(&cic_y_marge), "Marge over the y axis (height)")
                 ("Arguments.classifier_archive", po::value<std::string>(&classifier_archive));
         po::variables_map vm;
+
+
+
+
+
+
         try
         {
-            std::ifstream configfile(argv[1]);
+            // Parse command options
+            std::ifstream configfile(argv[0]);
             po::store(po::parse_command_line(argc, argv, desc), vm);
             po::store(po::parse_config_file(configfile, desc), vm);
             po::notify(vm);
+
+//            configfile.close();
         }
         catch(po::error& e)
         {
@@ -434,6 +443,15 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
 
         // Create directory for created data.
         mkdir((baseName_path + "build/").c_str(), 0777);
+        std::cout << baseName_path << std::endl;
+
+        // Copy config_file into build directory
+        std::ifstream cfg(argv[0], ios::binary);
+        std::ofstream info_file((baseName_path + "build/info_config_file.txt").c_str(), ios::binary);
+        info_file << cfg.rdbuf();
+        cfg.close();
+        info_file.close();
+
         // Go through the directory
         boost::filesystem::path p(baseName_path);
         fs::directory_iterator end_iter;
@@ -505,6 +523,19 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
 
 int main (int argc, char **argv)
 {
-    LoopOverDataset_RelevanceMap(argc, argv);
+    if (argv[1] == std::string("rm"))
+    {
+        std::cout << "Entering RelevanceMap Processing" << std::endl;
+        LoopOverDataset_RelevanceMap(argc-2, argv + 2);
+    }
+    else if (argv[1] == std::string("os"))
+    {
+        std::cout << "Entering ObjectSegmentation Processing" << std::endl;
+        LoopOverDataset_ProcessData(argc-2, argv + 2);
+    }
+    else
+    {
+        std::cout << "This function only admits following main parameters ['rm': RelevanceMap, 'os': ObjectSegmentation]" << std::endl;
+    }
     return 0;
 }
