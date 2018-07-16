@@ -2,7 +2,14 @@
 
 
 """
-    File containing python tools to handle the datasets produced with the object_dataset_building functions.
+    Source file of python tools to handle the datasets produced with the object_dataset_building functions.
+    _move_file_to_subdir:
+    _test_treshold:
+    analyse_images_dataset:
+    relocate_images:
+    relocate_small_images:
+    relocate_big_images:
+    create_dataset_root_file:
 """
 
 
@@ -139,8 +146,8 @@ def relocate_images(treshold_x, treshold_y, src_path, target_path, mode='<', ver
     nb_processed = 0
 
     # Create folder in which to discard rejected images
-    if os.path.isdir(target_path):
-        print('Target directory {} already exists, process may result in data being overwriten.'.format(target_path))
+    if os.path.isdir(target_path) and verbose:
+        print('WARNING: Target directory {} already exists, process may result in data being overwriten.'.format(target_path))
     else:
         os.mkdir(target_path)
 
@@ -159,7 +166,7 @@ def relocate_images(treshold_x, treshold_y, src_path, target_path, mode='<', ver
                     image = Image.open(os.path.join(src_path, entry.name))
                     x, y = image.size
                     
-                    if _test_treshold(x, y, treshold_x, treshold_y, '<'):
+                    if _test_treshold(x, y, treshold_x, treshold_y, mode):
                         if verbose:
                             print("Relocating file: {}, size({},{}).".format(entry.name, x, y))
                             print('---- From {}, to {}'.format(src_path, target_path))
@@ -172,7 +179,7 @@ def relocate_images(treshold_x, treshold_y, src_path, target_path, mode='<', ver
     return (nb_processed, nb_removed)
 
 
-def relocate_small_images(tre_x, tre_y=-1, dir_path='', storage_name='_storage', verbose=False):
+def relocate_small_images(dir_path, tre_x, tre_y=-1, storage_name='_storage', verbose=False):
     """
         Browse the dir_path directory.
         Any images that are stricly smaller than the given treshold are relocated in the dir_path+storage_name folder.
@@ -192,7 +199,7 @@ def relocate_small_images(tre_x, tre_y=-1, dir_path='', storage_name='_storage',
     storage = os.path.join(dir_path, storage_name)
     return relocate_images(treshold_x=tre_x, treshold_y=tre_y, src_path=root, target_path=storage, mode='<', verbose=verbose)
 
-def relocate_big_images(tre_x, tre_y=-1, dir_path='', storage_name='_storage', verbose=False):
+def relocate_big_images(dir_path, tre_x, tre_y=-1, storage_name='_storage', verbose=False):
     """
         Browse the storage_name dir from the dir_path directory.
         Any images bigger or equal to the treshold size given are relocated in dir_path.
@@ -213,17 +220,61 @@ def relocate_big_images(tre_x, tre_y=-1, dir_path='', storage_name='_storage', v
     return relocate_images(treshold_x=tre_x, treshold_y=tre_y, src_path=storage, target_path=root, mode='>=', verbose=verbose)
 
 
-def create_dataset_root_file(dir_path=''):
+def _process_image_label(img_name):
     """
-        Browse and create a root_file in a dataset file.
+        Process the formatted image name into name and label.
+        See naming convention format in dataset_builder.cpp source file.
+        For this specific case, files are formatted as follow:
+            '_processed_imgID_patchID_patchLABEL_color.jpg'
+
+        :param img_name: Name of the image.
+        :return: The label associated with this image.
+        :type img_name: string
+        :rtype: int
+    """
+    return img_name.split('_')[4]
+
+def create_dataset_root_file(dir_path, file_name='images_labels', verbose=False):
+    """
+        Browse a dataset folder, containing labeled images, and create a root_file.
         The root file contains as many line as the number of images in the folder.
-        Each line being: "file_name";"label"
+        Each line being: file_name;label
         The resulting pairs are saved in a newly created file, named images_labels + '.drf'.
 
         :param dir_path: Absolute path to the directory to browse.
+        :param file_name: Name of the file to create [default='images_labels'].
         :type dir_path: string
+        :type file_name: string
     """
 
+    white_listed_format = ['jpg', 'png']
+
+    extension = '.txt'
+    ofile_path = os.path.join(dir_path, file_name + extension)
+
+    if os.path.isfile(ofile_path) and verbose:
+        print('WARNING: File "{}" already exists, process will overwrite it.'.format(ofile_path))
+
+
+    ofile = open(ofile_path, mode='w')
+
+    nb_processed = 0
+    with os.scandir(path=dir_path) as it:
+        for entry in it:
+            if not entry.name.startswith('.') and entry.is_file():
+                is_valid = False
+                for extension in white_listed_format:
+                    if entry.name.endswith('.'+extension):
+                        is_valid = True
+
+                if is_valid:
+                    nb_processed += 1
+                    ofile.write('{};{}\n'.format(entry.name, _process_image_label(entry.name)))
+
+    if verbose:
+            print("Process result: processed={}.".format(nb_processed))
+
+    ofile.close()
 
     return
 
