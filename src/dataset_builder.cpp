@@ -523,19 +523,19 @@ int LoopOverDataset_RelevanceMap(int argc, char **argv)
 
 int main (int argc, char **argv)
 {
-    if (argv[1] == std::string("rm"))
+    if (argv[1] == std::string("rmp"))
     {
         std::cout << "Entering RelevanceMap Processing" << std::endl;
         LoopOverDataset_RelevanceMap(argc-2, argv + 2);
     }
-    else if (argv[1] == std::string("os"))
+    else if (argv[1] == std::string("osp"))
     {
         std::cout << "Entering ObjectSegmentation Processing" << std::endl;
         LoopOverDataset_ProcessData(argc-2, argv + 2);
     }
     else
     {
-        std::cout << "This function only admits following main parameters ['rm': RelevanceMap, 'os': ObjectSegmentation]" << std::endl;
+        std::cout << "This function only admits following main parameters ['rmp': RelevanceMapProcessing, 'osp': ObjectSegmentationProcessing]" << std::endl;
     }
     return 0;
 }

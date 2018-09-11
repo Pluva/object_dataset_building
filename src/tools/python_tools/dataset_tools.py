@@ -2,7 +2,10 @@
 
 
 """
-    Source file of python tools to handle the datasets produced with the object_dataset_building functions.
+    Executable source file of python tools to handle the datasets produced with the object_dataset_building functions.
+    ! Main be interesting to actually create a single main file with a mode selection ? !
+
+
     _move_file_to_subdir:
     _test_treshold:
     analyse_images_dataset:
@@ -265,6 +268,8 @@ def create_dataset_root_file(dir_path, file_name='images_labels', verbose=False)
     extension = '.txt'
     ofile_path = os.path.join(dir_path, file_name + extension)
 
+
+    if verbose: print('Entering CRDF (Create Root Dataset File mode.')
     if os.path.isfile(ofile_path) and verbose:
         print('WARNING: File "{}" already exists, process will overwrite it.'.format(ofile_path))
 
@@ -284,8 +289,7 @@ def create_dataset_root_file(dir_path, file_name='images_labels', verbose=False)
                     nb_processed += 1
                     ofile.write('{};{}\n'.format(entry.name, _process_image_label(entry.name)))
 
-    if verbose:
-            print("Process result: processed={}.".format(nb_processed))
+    if verbose: print("Process result: processed={}, output file path: {}".format(nb_processed, ofile_path))
 
     ofile.close()
 
@@ -300,6 +304,7 @@ if __name__ == '__main__':
     parser.add_argument('-s', '--size', nargs=2, type=int, help='Treshold shape of the images to be relocated.')
     parser.add_argument('-v', '--verbose', action='store_true', help='Print out info during process.')
     parser.add_argument('--storage', default='_storage', help='Name of the folder in which are stored the relocated images.')
+    parser.add_argument('--auto_crdf', default=True, help='If true, automatically recompute')
     
 
     args = parser.parse_args()
@@ -313,7 +318,9 @@ if __name__ == '__main__':
         else:
             print('Entering rsf (Remove Small Images) mode.')
             relocate_small_images(tre_x=args.size[0], tre_y=args.size[1], dir_path=args.dir, storage_name=args.storage, verbose=args.verbose)
-           
+            if args.auto_crdf:
+                create_dataset_root_file(dir_path=args.dir, verbose=args.verbose)
+
     elif args.mode == 'rbi':
         # Relocate Big Images from DEFAULT_store_name into given folder
         if not(args.size):
@@ -321,6 +328,8 @@ if __name__ == '__main__':
         else:
             print('Entering rsf (Remove Small Images) mode.')
             relocate_big_images(tre_x=args.size[0], tre_y=args.size[1], dir_path=args.dir, storage_name=args.storage, verbose=args.verbose)
+            if args.auto_crdf:
+                create_dataset_root_file(dir_path=args.dir, verbose=args.verbose)
 
     elif args.mode == 'cdrf':
         print('Entering cdrf mode (Create Dataset Root File).')
